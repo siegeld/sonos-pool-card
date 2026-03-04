@@ -1427,10 +1427,27 @@ class $a399cc6bbb0eb26a$export$bb88438db7446041 extends (0, $ab210b2da7b39b9d$ex
             volume: attrs.volume_level ?? 0
         };
     }
-    _grab() {
-        this._hass.callService("sonos_pool", "grab", {
-            pool: this._config.pool,
-            zone_id: this._config.zone_id
+    async _grab() {
+        const resp = await this._hass.connection.sendMessagePromise({
+            type: "call_service",
+            domain: "sonos_pool",
+            service: "grab",
+            service_data: {
+                pool: this._config.pool,
+                zone_id: this._config.zone_id
+            },
+            return_response: true
+        });
+        const data = resp?.response;
+        if (!data?.dante_tx_l || !data?.dante_tx_r) return;
+        const { dante_rx_l: dante_rx_l, dante_rx_r: dante_rx_r } = this._config;
+        if (dante_rx_l) this._hass.callService("select", "select_option", {
+            entity_id: dante_rx_l,
+            option: data.dante_tx_l
+        });
+        if (dante_rx_r) this._hass.callService("select", "select_option", {
+            entity_id: dante_rx_r,
+            option: data.dante_tx_r
         });
     }
     _release() {
@@ -1584,12 +1601,22 @@ class $d067581fc0d59830$export$22a135d787cc8458 extends (0, $ab210b2da7b39b9d$ex
     set hass(hass) {
         this._hass = hass;
         this._discoverPools();
+        this._discoverDanteRx();
     }
     _discoverPools() {
         const pools = [];
         for (const eid of Object.keys(this._hass.states))if (eid.startsWith("sensor.sonos_pool_")) pools.push(eid.replace("sensor.sonos_pool_", ""));
         pools.sort();
         this._pools = pools;
+    }
+    _discoverDanteRx() {
+        const entities = [];
+        for (const [eid, stateObj] of Object.entries(this._hass.states))if (eid.startsWith("select.") && eid.includes("_rx_")) entities.push({
+            id: eid,
+            name: stateObj.attributes.friendly_name || eid
+        });
+        entities.sort((a, b)=>a.name.localeCompare(b.name));
+        this._danteRxEntities = entities;
     }
     render() {
         return (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`
@@ -1628,6 +1655,42 @@ class $d067581fc0d59830$export$22a135d787cc8458 extends (0, $ab210b2da7b39b9d$ex
             placeholder="e.g. kitchen"
           />
         </div>
+        <div class="row">
+          <label>Dante RX Left</label>
+          <select
+            @change="${(e)=>this._valueChanged("dante_rx_l", e.target.value)}"
+          >
+            <option value="" ?selected="${!this._config.dante_rx_l}">
+              None
+            </option>
+            ${this._danteRxEntities.map((e)=>(0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`
+                <option
+                  value="${e.id}"
+                  ?selected="${this._config.dante_rx_l === e.id}"
+                >
+                  ${e.name}
+                </option>
+              `)}
+          </select>
+        </div>
+        <div class="row">
+          <label>Dante RX Right</label>
+          <select
+            @change="${(e)=>this._valueChanged("dante_rx_r", e.target.value)}"
+          >
+            <option value="" ?selected="${!this._config.dante_rx_r}">
+              None
+            </option>
+            ${this._danteRxEntities.map((e)=>(0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`
+                <option
+                  value="${e.id}"
+                  ?selected="${this._config.dante_rx_r === e.id}"
+                >
+                  ${e.name}
+                </option>
+              `)}
+          </select>
+        </div>
       </div>
     `;
     }
@@ -1646,7 +1709,7 @@ class $d067581fc0d59830$export$22a135d787cc8458 extends (0, $ab210b2da7b39b9d$ex
         }));
     }
     constructor(...args){
-        super(...args), this._pools = [];
+        super(...args), this._pools = [], this._danteRxEntities = [];
     }
 }
 (0, $24c52f343453d62d$export$29e00dfd3077644b)([
@@ -1658,6 +1721,9 @@ class $d067581fc0d59830$export$22a135d787cc8458 extends (0, $ab210b2da7b39b9d$ex
 (0, $24c52f343453d62d$export$29e00dfd3077644b)([
     (0, $04c21ea1ce1f6057$export$ca000e230c0caa3e)()
 ], $d067581fc0d59830$export$22a135d787cc8458.prototype, "_pools", void 0);
+(0, $24c52f343453d62d$export$29e00dfd3077644b)([
+    (0, $04c21ea1ce1f6057$export$ca000e230c0caa3e)()
+], $d067581fc0d59830$export$22a135d787cc8458.prototype, "_danteRxEntities", void 0);
 
 
 customElements.define("sonos-pool-card", (0, $a399cc6bbb0eb26a$export$bb88438db7446041));

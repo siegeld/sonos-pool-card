@@ -64,11 +64,34 @@ export class SonosPoolCard extends LitElement {
     };
   }
 
-  private _grab() {
-    this._hass.callService("sonos_pool", "grab", {
-      pool: this._config.pool,
-      zone_id: this._config.zone_id,
+  private async _grab() {
+    const resp: any = await this._hass.connection.sendMessagePromise({
+      type: "call_service",
+      domain: "sonos_pool",
+      service: "grab",
+      service_data: {
+        pool: this._config.pool,
+        zone_id: this._config.zone_id,
+      },
+      return_response: true,
     });
+
+    const data = resp?.response;
+    if (!data?.dante_tx_l || !data?.dante_tx_r) return;
+
+    const { dante_rx_l, dante_rx_r } = this._config;
+    if (dante_rx_l) {
+      this._hass.callService("select", "select_option", {
+        entity_id: dante_rx_l,
+        option: data.dante_tx_l,
+      });
+    }
+    if (dante_rx_r) {
+      this._hass.callService("select", "select_option", {
+        entity_id: dante_rx_r,
+        option: data.dante_tx_r,
+      });
+    }
   }
 
   private _release() {

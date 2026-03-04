@@ -8,6 +8,7 @@ export class SonosPoolCardEditor extends LitElement {
   @state() _config!: SonosPoolCardConfig;
   @state() _hass!: HomeAssistant;
   @state() _pools: string[] = [];
+  @state() _danteRxEntities: { id: string; name: string }[] = [];
 
   static styles = editorStyles;
 
@@ -18,6 +19,7 @@ export class SonosPoolCardEditor extends LitElement {
   set hass(hass: HomeAssistant) {
     this._hass = hass;
     this._discoverPools();
+    this._discoverDanteRx();
   }
 
   private _discoverPools() {
@@ -29,6 +31,20 @@ export class SonosPoolCardEditor extends LitElement {
     }
     pools.sort();
     this._pools = pools;
+  }
+
+  private _discoverDanteRx() {
+    const entities: { id: string; name: string }[] = [];
+    for (const [eid, stateObj] of Object.entries(this._hass.states)) {
+      if (eid.startsWith("select.") && eid.includes("_rx_")) {
+        entities.push({
+          id: eid,
+          name: stateObj.attributes.friendly_name || eid,
+        });
+      }
+    }
+    entities.sort((a, b) => a.name.localeCompare(b.name));
+    this._danteRxEntities = entities;
   }
 
   render() {
@@ -81,6 +97,54 @@ export class SonosPoolCardEditor extends LitElement {
               )}"
             placeholder="e.g. kitchen"
           />
+        </div>
+        <div class="row">
+          <label>Dante RX Left</label>
+          <select
+            @change="${(e: Event) =>
+              this._valueChanged(
+                "dante_rx_l",
+                (e.target as HTMLSelectElement).value
+              )}"
+          >
+            <option value="" ?selected="${!this._config.dante_rx_l}">
+              None
+            </option>
+            ${this._danteRxEntities.map(
+              (e) => html`
+                <option
+                  value="${e.id}"
+                  ?selected="${this._config.dante_rx_l === e.id}"
+                >
+                  ${e.name}
+                </option>
+              `
+            )}
+          </select>
+        </div>
+        <div class="row">
+          <label>Dante RX Right</label>
+          <select
+            @change="${(e: Event) =>
+              this._valueChanged(
+                "dante_rx_r",
+                (e.target as HTMLSelectElement).value
+              )}"
+          >
+            <option value="" ?selected="${!this._config.dante_rx_r}">
+              None
+            </option>
+            ${this._danteRxEntities.map(
+              (e) => html`
+                <option
+                  value="${e.id}"
+                  ?selected="${this._config.dante_rx_r === e.id}"
+                >
+                  ${e.name}
+                </option>
+              `
+            )}
+          </select>
         </div>
       </div>
     `;
