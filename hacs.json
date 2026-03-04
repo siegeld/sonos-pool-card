@@ -1,0 +1,6 @@
+{
+  "name": "Sonos Pool Card",
+  "type": "plugin",
+  "filename": "dist/sonos-pool-card.js",
+  "render_readme": true
+}
