@@ -87,6 +87,23 @@ export class SonosPoolCardEditor extends LitElement {
           </select>
         </div>
         <div class="row">
+          <label>Mode</label>
+          <select
+            @change="${(e: Event) =>
+              this._valueChanged(
+                "mode",
+                (e.target as HTMLSelectElement).value
+              )}"
+          >
+            <option value="normal" ?selected="${this._config.mode !== "compact"}">
+              Normal
+            </option>
+            <option value="compact" ?selected="${this._config.mode === "compact"}">
+              Compact
+            </option>
+          </select>
+        </div>
+        <div class="row">
           <label>Zone ID</label>
           <input
             .value="${this._config.zone_id || ""}"

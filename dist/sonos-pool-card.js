@@ -1213,11 +1213,24 @@ const $120c5a859c012378$export$9dd6ff9ea0189349 = (0, $def2de46b9306e8a$export$d
   }
 
   .card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 16px;
     font-weight: 500;
     color: var(--ha-card-header-color, var(--primary-text-color));
     padding: 0 0 8px;
     margin: 0;
+  }
+
+  .pool-count {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--secondary-text-color, #727272);
+    background: var(--secondary-background-color, #f5f5f5);
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
   }
 
   .card-content {
@@ -1385,6 +1398,99 @@ const $120c5a859c012378$export$9dd6ff9ea0189349 = (0, $def2de46b9306e8a$export$d
     cursor: pointer;
     border: none;
   }
+
+  /* ── Compact mode ── */
+
+  .compact-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--ha-card-background, var(--card-background-color, #fff));
+    border-radius: var(--ha-card-border-radius, 12px);
+    box-shadow: var(--ha-card-box-shadow, 0 2px 2px rgba(0,0,0,0.1));
+  }
+
+  .compact-wrap.unassigned {
+    justify-content: space-between;
+  }
+
+  .compact-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--primary-text-color);
+  }
+
+  .compact-grab {
+    padding: 6px 16px;
+    font-size: 13px;
+  }
+
+  .compact-art {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .compact-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .compact-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--primary-text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .compact-artist {
+    font-size: 11px;
+    color: var(--secondary-text-color, #727272);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .compact-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    color: var(--primary-text-color);
+    -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
+  }
+
+  .compact-btn:hover {
+    background-color: var(--secondary-background-color, #f5f5f5);
+  }
+
+  .compact-btn:active {
+    transform: scale(0.9);
+  }
+
+  .compact-btn ha-icon {
+    --mdc-icon-size: 20px;
+  }
+
+  .compact-btn.vol ha-icon {
+    --mdc-icon-size: 18px;
+    color: var(--secondary-text-color, #727272);
+  }
+
+  .compact-btn.release ha-icon {
+    --mdc-icon-size: 16px;
+    color: var(--secondary-text-color, #727272);
+  }
 `;
 
 
@@ -1406,6 +1512,8 @@ class $a399cc6bbb0eb26a$export$bb88438db7446041 extends (0, $ab210b2da7b39b9d$ex
             return;
         }
         const assignments = sensor.attributes.assignments || {};
+        this._poolTotal = sensor.attributes.total || 0;
+        this._poolUsed = Object.keys(assignments).length;
         const entityId = assignments[this._config.zone_id];
         if (!entityId) {
             this._player = null;
@@ -1471,10 +1579,17 @@ class $a399cc6bbb0eb26a$export$bb88438db7446041 extends (0, $ab210b2da7b39b9d$ex
         });
     }
     render() {
+        if (this._config.mode === "compact") return this._renderCompact();
+        return this._renderNormal();
+    }
+    _poolBadge() {
+        return (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`<span class="pool-count">${this._poolUsed}/${this._poolTotal}</span>`;
+    }
+    _renderNormal() {
         const name = this._config.name || this._config.zone_id;
         if (!this._player) return (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`
         <ha-card>
-          <div class="card-header">${name}</div>
+          <div class="card-header">${name} ${this._poolBadge()}</div>
           <div class="card-content unassigned">
             <button class="grab-btn" @click="${this._grab}">Grab</button>
           </div>
@@ -1484,7 +1599,7 @@ class $a399cc6bbb0eb26a$export$bb88438db7446041 extends (0, $ab210b2da7b39b9d$ex
         const isPlaying = p.state === "playing";
         return (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`
       <ha-card>
-        <div class="card-header">${name}</div>
+        <div class="card-header">${name} ${this._poolBadge()}</div>
         <div class="card-content assigned">
           <div class="player-info">
             ${p.picture ? (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`<img class="album-art" src="${p.picture}" />` : (0, $f58f44579a4747ac$export$45b790e32b2810ee)}
@@ -1525,6 +1640,42 @@ class $a399cc6bbb0eb26a$export$bb88438db7446041 extends (0, $ab210b2da7b39b9d$ex
       </ha-card>
     `;
     }
+    _renderCompact() {
+        if (!this._player) return (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`
+        <div class="compact-wrap unassigned">
+          <span class="compact-name">${this._config.name || this._config.zone_id}</span>
+          ${this._poolBadge()}
+          <button class="grab-btn compact-grab" @click="${this._grab}">Grab</button>
+        </div>
+      `;
+        const p = this._player;
+        const isPlaying = p.state === "playing";
+        return (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`
+      <div class="compact-wrap">
+        ${p.picture ? (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`<img class="compact-art" src="${p.picture}" />` : (0, $f58f44579a4747ac$export$45b790e32b2810ee)}
+        <div class="compact-info">
+          ${p.title ? (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`<span class="compact-title">${p.title}</span>` : (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`<span class="compact-title">${p.friendlyName}</span>`}
+          ${p.artist ? (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`<span class="compact-artist">${p.artist}</span>` : (0, $f58f44579a4747ac$export$45b790e32b2810ee)}
+        </div>
+        <button class="compact-btn" @click="${()=>this._mediaCommand("media_play_pause")}">
+          <ha-icon icon="${isPlaying ? "mdi:pause" : "mdi:play"}"></ha-icon>
+        </button>
+        <button class="compact-btn" @click="${()=>this._mediaCommand("media_next_track")}">
+          <ha-icon icon="mdi:skip-next"></ha-icon>
+        </button>
+        <button class="compact-btn vol" @click="${()=>this._mediaCommand("volume_down")}">
+          <ha-icon icon="mdi:volume-minus"></ha-icon>
+        </button>
+        <button class="compact-btn vol" @click="${()=>this._mediaCommand("volume_up")}">
+          <ha-icon icon="mdi:volume-plus"></ha-icon>
+        </button>
+        <button class="compact-btn release" @click="${this._release}">
+          <ha-icon icon="mdi:close"></ha-icon>
+        </button>
+        ${this._poolBadge()}
+      </div>
+    `;
+    }
     static getConfigElement() {
         return document.createElement("sonos-pool-card-editor");
     }
@@ -1536,10 +1687,11 @@ class $a399cc6bbb0eb26a$export$bb88438db7446041 extends (0, $ab210b2da7b39b9d$ex
         };
     }
     getCardSize() {
+        if (this._config.mode === "compact") return 1;
         return this._player ? 4 : 2;
     }
     constructor(...args){
-        super(...args), this._player = null;
+        super(...args), this._player = null, this._poolUsed = 0, this._poolTotal = 0;
     }
 }
 (0, $24c52f343453d62d$export$29e00dfd3077644b)([
@@ -1548,6 +1700,12 @@ class $a399cc6bbb0eb26a$export$bb88438db7446041 extends (0, $ab210b2da7b39b9d$ex
 (0, $24c52f343453d62d$export$29e00dfd3077644b)([
     (0, $04c21ea1ce1f6057$export$ca000e230c0caa3e)()
 ], $a399cc6bbb0eb26a$export$bb88438db7446041.prototype, "_player", void 0);
+(0, $24c52f343453d62d$export$29e00dfd3077644b)([
+    (0, $04c21ea1ce1f6057$export$ca000e230c0caa3e)()
+], $a399cc6bbb0eb26a$export$bb88438db7446041.prototype, "_poolUsed", void 0);
+(0, $24c52f343453d62d$export$29e00dfd3077644b)([
+    (0, $04c21ea1ce1f6057$export$ca000e230c0caa3e)()
+], $a399cc6bbb0eb26a$export$bb88438db7446041.prototype, "_poolTotal", void 0);
 
 
 
@@ -1645,6 +1803,19 @@ class $d067581fc0d59830$export$22a135d787cc8458 extends (0, $ab210b2da7b39b9d$ex
                   ${p}
                 </option>
               `)}
+          </select>
+        </div>
+        <div class="row">
+          <label>Mode</label>
+          <select
+            @change="${(e)=>this._valueChanged("mode", e.target.value)}"
+          >
+            <option value="normal" ?selected="${this._config.mode !== "compact"}">
+              Normal
+            </option>
+            <option value="compact" ?selected="${this._config.mode === "compact"}">
+              Compact
+            </option>
           </select>
         </div>
         <div class="row">

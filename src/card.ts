@@ -17,6 +17,8 @@ interface PlayerState {
 export class SonosPoolCard extends LitElement {
   @state() private _config!: SonosPoolCardConfig;
   @state() private _player: PlayerState | null = null;
+  @state() private _poolUsed = 0;
+  @state() private _poolTotal = 0;
 
   private _hass!: HomeAssistant;
 
@@ -39,6 +41,8 @@ export class SonosPoolCard extends LitElement {
     }
 
     const assignments = sensor.attributes.assignments || {};
+    this._poolTotal = sensor.attributes.total || 0;
+    this._poolUsed = Object.keys(assignments).length;
     const entityId = assignments[this._config.zone_id];
 
     if (!entityId) {
@@ -118,12 +122,21 @@ export class SonosPoolCard extends LitElement {
   }
 
   render() {
+    if (this._config.mode === "compact") return this._renderCompact();
+    return this._renderNormal();
+  }
+
+  private _poolBadge() {
+    return html`<span class="pool-count">${this._poolUsed}/${this._poolTotal}</span>`;
+  }
+
+  private _renderNormal() {
     const name = this._config.name || this._config.zone_id;
 
     if (!this._player) {
       return html`
         <ha-card>
-          <div class="card-header">${name}</div>
+          <div class="card-header">${name} ${this._poolBadge()}</div>
           <div class="card-content unassigned">
             <button class="grab-btn" @click="${this._grab}">Grab</button>
           </div>
@@ -136,7 +149,7 @@ export class SonosPoolCard extends LitElement {
 
     return html`
       <ha-card>
-        <div class="card-header">${name}</div>
+        <div class="card-header">${name} ${this._poolBadge()}</div>
         <div class="card-content assigned">
           <div class="player-info">
             ${p.picture
@@ -184,6 +197,53 @@ export class SonosPoolCard extends LitElement {
     `;
   }
 
+  private _renderCompact() {
+    if (!this._player) {
+      return html`
+        <div class="compact-wrap unassigned">
+          <span class="compact-name">${this._config.name || this._config.zone_id}</span>
+          ${this._poolBadge()}
+          <button class="grab-btn compact-grab" @click="${this._grab}">Grab</button>
+        </div>
+      `;
+    }
+
+    const p = this._player;
+    const isPlaying = p.state === "playing";
+
+    return html`
+      <div class="compact-wrap">
+        ${p.picture
+          ? html`<img class="compact-art" src="${p.picture}" />`
+          : nothing}
+        <div class="compact-info">
+          ${p.title
+            ? html`<span class="compact-title">${p.title}</span>`
+            : html`<span class="compact-title">${p.friendlyName}</span>`}
+          ${p.artist
+            ? html`<span class="compact-artist">${p.artist}</span>`
+            : nothing}
+        </div>
+        <button class="compact-btn" @click="${() => this._mediaCommand("media_play_pause")}">
+          <ha-icon icon="${isPlaying ? "mdi:pause" : "mdi:play"}"></ha-icon>
+        </button>
+        <button class="compact-btn" @click="${() => this._mediaCommand("media_next_track")}">
+          <ha-icon icon="mdi:skip-next"></ha-icon>
+        </button>
+        <button class="compact-btn vol" @click="${() => this._mediaCommand("volume_down")}">
+          <ha-icon icon="mdi:volume-minus"></ha-icon>
+        </button>
+        <button class="compact-btn vol" @click="${() => this._mediaCommand("volume_up")}">
+          <ha-icon icon="mdi:volume-plus"></ha-icon>
+        </button>
+        <button class="compact-btn release" @click="${this._release}">
+          <ha-icon icon="mdi:close"></ha-icon>
+        </button>
+        ${this._poolBadge()}
+      </div>
+    `;
+  }
+
   static getConfigElement() {
     return document.createElement("sonos-pool-card-editor");
   }
@@ -197,6 +257,7 @@ export class SonosPoolCard extends LitElement {
   }
 
   getCardSize() {
+    if (this._config.mode === "compact") return 1;
     return this._player ? 4 : 2;
   }
 }
