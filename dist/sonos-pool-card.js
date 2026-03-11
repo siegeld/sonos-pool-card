@@ -1442,6 +1442,15 @@ const $120c5a859c012378$export$9dd6ff9ea0189349 = (0, $def2de46b9306e8a$export$d
     gap: 1px;
   }
 
+  .compact-player {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--secondary-text-color, #727272);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .compact-title {
     font-size: 13px;
     font-weight: 500;
@@ -1500,7 +1509,6 @@ class $a399cc6bbb0eb26a$export$bb88438db7446041 extends (0, $ab210b2da7b39b9d$ex
     }
     setConfig(config) {
         if (!config.pool) throw new Error("pool is required");
-        if (!config.zone_id) throw new Error("zone_id is required");
         this._config = config;
     }
     set hass(hass) {
@@ -1547,15 +1555,19 @@ class $a399cc6bbb0eb26a$export$bb88438db7446041 extends (0, $ab210b2da7b39b9d$ex
             return_response: true
         });
         const data = resp?.response;
-        if (!data?.dante_tx_l || !data?.dante_tx_r) return;
-        const { dante_rx_l: dante_rx_l, dante_rx_r: dante_rx_r } = this._config;
-        if (dante_rx_l) this._hass.callService("select", "select_option", {
+        if (!data) return;
+        const { dante_rx_l: dante_rx_l, dante_rx_r: dante_rx_r, nax_entity: nax_entity } = this._config;
+        if (dante_rx_l && data.dante_tx_l) this._hass.callService("select", "select_option", {
             entity_id: dante_rx_l,
             option: data.dante_tx_l
         });
-        if (dante_rx_r) this._hass.callService("select", "select_option", {
+        if (dante_rx_r && data.dante_tx_r) this._hass.callService("select", "select_option", {
             entity_id: dante_rx_r,
             option: data.dante_tx_r
+        });
+        if (nax_entity && data.nax_source) this._hass.callService("media_player", "select_source", {
+            entity_id: nax_entity,
+            source: data.nax_source
         });
     }
     _release() {
@@ -1586,7 +1598,7 @@ class $a399cc6bbb0eb26a$export$bb88438db7446041 extends (0, $ab210b2da7b39b9d$ex
         return (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`<span class="pool-count">${this._poolUsed}/${this._poolTotal}</span>`;
     }
     _renderNormal() {
-        const name = this._config.name || this._config.zone_id;
+        const name = this._friendlyName();
         if (!this._player) return (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`
         <ha-card>
           <div class="card-header">${name} ${this._poolBadge()}</div>
@@ -1640,11 +1652,14 @@ class $a399cc6bbb0eb26a$export$bb88438db7446041 extends (0, $ab210b2da7b39b9d$ex
       </ha-card>
     `;
     }
+    _friendlyName() {
+        if (this._config.name) return this._config.name;
+        return (this._config.zone_id || "").replace(/_/g, " ").replace(/\b\w/g, (c)=>c.toUpperCase());
+    }
     _renderCompact() {
         if (!this._player) return (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`
         <div class="compact-wrap unassigned">
-          <span class="compact-name">${this._config.name || this._config.zone_id}</span>
-          ${this._poolBadge()}
+          <span class="compact-name">${this._friendlyName()} (${this._poolUsed}/${this._poolTotal})</span>
           <button class="grab-btn compact-grab" @click="${this._grab}">Grab</button>
         </div>
       `;
@@ -1654,9 +1669,12 @@ class $a399cc6bbb0eb26a$export$bb88438db7446041 extends (0, $ab210b2da7b39b9d$ex
       <div class="compact-wrap">
         ${p.picture ? (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`<img class="compact-art" src="${p.picture}" />` : (0, $f58f44579a4747ac$export$45b790e32b2810ee)}
         <div class="compact-info">
-          ${p.title ? (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`<span class="compact-title">${p.title}</span>` : (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`<span class="compact-title">${p.friendlyName}</span>`}
-          ${p.artist ? (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`<span class="compact-artist">${p.artist}</span>` : (0, $f58f44579a4747ac$export$45b790e32b2810ee)}
+          <span class="compact-player">${p.friendlyName}</span>
+          ${p.title ? (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`<span class="compact-title">${p.title}${p.artist ? ` - ${p.artist}` : ""}</span>` : (0, $f58f44579a4747ac$export$45b790e32b2810ee)}
         </div>
+        <button class="compact-btn" @click="${()=>this._mediaCommand("media_previous_track")}">
+          <ha-icon icon="mdi:skip-previous"></ha-icon>
+        </button>
         <button class="compact-btn" @click="${()=>this._mediaCommand("media_play_pause")}">
           <ha-icon icon="${isPlaying ? "mdi:pause" : "mdi:play"}"></ha-icon>
         </button>
@@ -1760,6 +1778,7 @@ class $d067581fc0d59830$export$22a135d787cc8458 extends (0, $ab210b2da7b39b9d$ex
         this._hass = hass;
         this._discoverPools();
         this._discoverDanteRx();
+        this._discoverNax();
     }
     _discoverPools() {
         const pools = [];
@@ -1775,6 +1794,15 @@ class $d067581fc0d59830$export$22a135d787cc8458 extends (0, $ab210b2da7b39b9d$ex
         });
         entities.sort((a, b)=>a.name.localeCompare(b.name));
         this._danteRxEntities = entities;
+    }
+    _discoverNax() {
+        const entities = [];
+        for (const [eid, stateObj] of Object.entries(this._hass.states))if (eid.startsWith("media_player.crestron_")) entities.push({
+            id: eid,
+            name: stateObj.attributes.friendly_name || eid
+        });
+        entities.sort((a, b)=>a.name.localeCompare(b.name));
+        this._naxEntities = entities;
     }
     render() {
         return (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`
@@ -1862,6 +1890,24 @@ class $d067581fc0d59830$export$22a135d787cc8458 extends (0, $ab210b2da7b39b9d$ex
               `)}
           </select>
         </div>
+        <div class="row">
+          <label>NAX Entity</label>
+          <select
+            @change="${(e)=>this._valueChanged("nax_entity", e.target.value)}"
+          >
+            <option value="" ?selected="${!this._config.nax_entity}">
+              None
+            </option>
+            ${this._naxEntities.map((e)=>(0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`
+                <option
+                  value="${e.id}"
+                  ?selected="${this._config.nax_entity === e.id}"
+                >
+                  ${e.name}
+                </option>
+              `)}
+          </select>
+        </div>
       </div>
     `;
     }
@@ -1880,7 +1926,7 @@ class $d067581fc0d59830$export$22a135d787cc8458 extends (0, $ab210b2da7b39b9d$ex
         }));
     }
     constructor(...args){
-        super(...args), this._pools = [], this._danteRxEntities = [];
+        super(...args), this._pools = [], this._danteRxEntities = [], this._naxEntities = [];
     }
 }
 (0, $24c52f343453d62d$export$29e00dfd3077644b)([
@@ -1895,6 +1941,9 @@ class $d067581fc0d59830$export$22a135d787cc8458 extends (0, $ab210b2da7b39b9d$ex
 (0, $24c52f343453d62d$export$29e00dfd3077644b)([
     (0, $04c21ea1ce1f6057$export$ca000e230c0caa3e)()
 ], $d067581fc0d59830$export$22a135d787cc8458.prototype, "_danteRxEntities", void 0);
+(0, $24c52f343453d62d$export$29e00dfd3077644b)([
+    (0, $04c21ea1ce1f6057$export$ca000e230c0caa3e)()
+], $d067581fc0d59830$export$22a135d787cc8458.prototype, "_naxEntities", void 0);
 
 
 customElements.define("sonos-pool-card", (0, $a399cc6bbb0eb26a$export$bb88438db7446041));

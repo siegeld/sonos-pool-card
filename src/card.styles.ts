@@ -235,6 +235,15 @@ export const styles = css`
     gap: 1px;
   }
 
+  .compact-player {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--secondary-text-color, #727272);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .compact-title {
     font-size: 13px;
     font-weight: 500;

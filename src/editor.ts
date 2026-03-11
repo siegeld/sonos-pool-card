@@ -9,6 +9,7 @@ export class SonosPoolCardEditor extends LitElement {
   @state() _hass!: HomeAssistant;
   @state() _pools: string[] = [];
   @state() _danteRxEntities: { id: string; name: string }[] = [];
+  @state() _naxEntities: { id: string; name: string }[] = [];
 
   static styles = editorStyles;
 
@@ -20,6 +21,7 @@ export class SonosPoolCardEditor extends LitElement {
     this._hass = hass;
     this._discoverPools();
     this._discoverDanteRx();
+    this._discoverNax();
   }
 
   private _discoverPools() {
@@ -45,6 +47,20 @@ export class SonosPoolCardEditor extends LitElement {
     }
     entities.sort((a, b) => a.name.localeCompare(b.name));
     this._danteRxEntities = entities;
+  }
+
+  private _discoverNax() {
+    const entities: { id: string; name: string }[] = [];
+    for (const [eid, stateObj] of Object.entries(this._hass.states)) {
+      if (eid.startsWith("media_player.crestron_")) {
+        entities.push({
+          id: eid,
+          name: stateObj.attributes.friendly_name || eid,
+        });
+      }
+    }
+    entities.sort((a, b) => a.name.localeCompare(b.name));
+    this._naxEntities = entities;
   }
 
   render() {
@@ -156,6 +172,30 @@ export class SonosPoolCardEditor extends LitElement {
                 <option
                   value="${e.id}"
                   ?selected="${this._config.dante_rx_r === e.id}"
+                >
+                  ${e.name}
+                </option>
+              `
+            )}
+          </select>
+        </div>
+        <div class="row">
+          <label>NAX Entity</label>
+          <select
+            @change="${(e: Event) =>
+              this._valueChanged(
+                "nax_entity",
+                (e.target as HTMLSelectElement).value
+              )}"
+          >
+            <option value="" ?selected="${!this._config.nax_entity}">
+              None
+            </option>
+            ${this._naxEntities.map(
+              (e) => html`
+                <option
+                  value="${e.id}"
+                  ?selected="${this._config.nax_entity === e.id}"
                 >
                   ${e.name}
                 </option>

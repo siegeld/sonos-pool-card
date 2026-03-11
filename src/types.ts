@@ -7,4 +7,5 @@ export interface SonosPoolCardConfig extends LovelaceCardConfig {
   mode?: "normal" | "compact";
   dante_rx_l?: string;
   dante_rx_r?: string;
+  nax_entity?: string;
 }

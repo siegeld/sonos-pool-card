@@ -26,7 +26,6 @@ export class SonosPoolCard extends LitElement {
 
   setConfig(config: SonosPoolCardConfig) {
     if (!config.pool) throw new Error("pool is required");
-    if (!config.zone_id) throw new Error("zone_id is required");
     this._config = config;
   }
 
@@ -81,19 +80,25 @@ export class SonosPoolCard extends LitElement {
     });
 
     const data = resp?.response;
-    if (!data?.dante_tx_l || !data?.dante_tx_r) return;
+    if (!data) return;
 
-    const { dante_rx_l, dante_rx_r } = this._config;
-    if (dante_rx_l) {
+    const { dante_rx_l, dante_rx_r, nax_entity } = this._config;
+    if (dante_rx_l && data.dante_tx_l) {
       this._hass.callService("select", "select_option", {
         entity_id: dante_rx_l,
         option: data.dante_tx_l,
       });
     }
-    if (dante_rx_r) {
+    if (dante_rx_r && data.dante_tx_r) {
       this._hass.callService("select", "select_option", {
         entity_id: dante_rx_r,
         option: data.dante_tx_r,
+      });
+    }
+    if (nax_entity && data.nax_source) {
+      this._hass.callService("media_player", "select_source", {
+        entity_id: nax_entity,
+        source: data.nax_source,
       });
     }
   }
@@ -131,7 +136,7 @@ export class SonosPoolCard extends LitElement {
   }
 
   private _renderNormal() {
-    const name = this._config.name || this._config.zone_id;
+    const name = this._friendlyName();
 
     if (!this._player) {
       return html`
@@ -197,12 +202,18 @@ export class SonosPoolCard extends LitElement {
     `;
   }
 
+  private _friendlyName() {
+    if (this._config.name) return this._config.name;
+    return (this._config.zone_id || "")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
   private _renderCompact() {
     if (!this._player) {
       return html`
         <div class="compact-wrap unassigned">
-          <span class="compact-name">${this._config.name || this._config.zone_id}</span>
-          ${this._poolBadge()}
+          <span class="compact-name">${this._friendlyName()} (${this._poolUsed}/${this._poolTotal})</span>
           <button class="grab-btn compact-grab" @click="${this._grab}">Grab</button>
         </div>
       `;
@@ -217,13 +228,14 @@ export class SonosPoolCard extends LitElement {
           ? html`<img class="compact-art" src="${p.picture}" />`
           : nothing}
         <div class="compact-info">
+          <span class="compact-player">${p.friendlyName}</span>
           ${p.title
-            ? html`<span class="compact-title">${p.title}</span>`
-            : html`<span class="compact-title">${p.friendlyName}</span>`}
-          ${p.artist
-            ? html`<span class="compact-artist">${p.artist}</span>`
+            ? html`<span class="compact-title">${p.title}${p.artist ? ` - ${p.artist}` : ""}</span>`
             : nothing}
         </div>
+        <button class="compact-btn" @click="${() => this._mediaCommand("media_previous_track")}">
+          <ha-icon icon="mdi:skip-previous"></ha-icon>
+        </button>
         <button class="compact-btn" @click="${() => this._mediaCommand("media_play_pause")}">
           <ha-icon icon="${isPlaying ? "mdi:pause" : "mdi:play"}"></ha-icon>
         </button>
